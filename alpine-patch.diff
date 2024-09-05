@@ -1,0 +1,42 @@
+diff --git a/component/libfuse/libfuse_handler.go b/component/libfuse/libfuse_handler.go
+index 5ecbbeea..f3f0b7e4 100644
+--- a/component/libfuse/libfuse_handler.go
++++ b/component/libfuse/libfuse_handler.go
+@@ -678,14 +678,14 @@ func libfuse_open(path *C.char, fi *C.fuse_file_info_t) C.int {
+ 	log.Trace("Libfuse::libfuse_open : %s", name)
+ 	// TODO: Should this sit behind a user option? What if we change something to support these in the future?
+ 	// Mask out SYNC and DIRECT flags since write operation will fail
+-	if fi.flags&C.O_SYNC != 0 || fi.flags&C.__O_DIRECT != 0 {
++	if fi.flags&C.O_SYNC != 0 || fi.flags&C.O_DIRECT != 0 {
+ 		log.Info("Libfuse::libfuse_open : Reset flags for open %s, fi.flags %X", name, fi.flags)
+ 		// Blobfuse2 does not support the SYNC or DIRECT flag. If a user application passes this flag on to blobfuse2
+ 		// and we open the file with this flag, subsequent write operations will fail with "Invalid argument" error.
+ 		// Mask them out here in the open call so that write works.
+ 		// Oracle RMAN is one such application that sends these flags during backup
+ 		fi.flags = fi.flags &^ C.O_SYNC
+-		fi.flags = fi.flags &^ C.__O_DIRECT
++		fi.flags = fi.flags &^ C.O_DIRECT
+ 	}
+ 	if !fuseFS.disableWritebackCache {
+ 		if fi.flags&C.O_ACCMODE == C.O_WRONLY || fi.flags&C.O_APPEND != 0 {
+diff --git a/component/libfuse/libfuse_handler_test_wrapper.go b/component/libfuse/libfuse_handler_test_wrapper.go
+index 280546b6..8a624219 100644
+--- a/component/libfuse/libfuse_handler_test_wrapper.go
++++ b/component/libfuse/libfuse_handler_test_wrapper.go
+@@ -234,14 +234,14 @@ func testOpenSyncDirectFlag(suite *libfuseTestSuite) {
+ 	mode := fs.FileMode(fuseFS.filePermission)
+ 	flags := C.O_RDWR & 0xffffffff
+ 	info := &C.fuse_file_info_t{}
+-	info.flags = C.O_RDWR | C.O_SYNC | C.__O_DIRECT
++	info.flags = C.O_RDWR | C.O_SYNC | C.O_DIRECT
+ 	options := internal.OpenFileOptions{Name: name, Flags: flags, Mode: mode}
+ 	suite.mock.EXPECT().OpenFile(options).Return(&handlemap.Handle{}, nil)
+ 
+ 	err := libfuse_open(path, info)
+ 	suite.assert.Equal(C.int(0), err)
+ 	suite.assert.Equal(C.int(0), info.flags&C.O_SYNC)
+-	suite.assert.Equal(C.int(0), info.flags&C.__O_DIRECT)
++	suite.assert.Equal(C.int(0), info.flags&C.O_DIRECT)
+ }
+ 
+ // WriteBack caching and ignore-open-flags enabled by default
